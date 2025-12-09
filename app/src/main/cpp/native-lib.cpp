@@ -23,14 +23,23 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     AVFormatContext *ic = NULL;
     char path[] = "/sdcard/1.mp4";
     int re = avformat_open_input(&ic,path,nullptr,nullptr);
-    if (re == 0){
+    if (re != 0){
+        //打开失败
+        LOGW("avformat_open_input %s failed:",av_err2str(re));
+        return env->NewStringUTF(hello.c_str());
+
+    }else{
         //打开成功
         LOGW("avformat_open_input %s success!",path);
+        //获取流信息，在没有成功获取ic->duration,ic->nb_streams时使用
+        //re = avformat_find_stream_info(ic,0);
+        //然后获取流信息
+        LOGW("duration = %lld, nb_streams = %d",ic->duration,ic->nb_streams);
+
         avformat_close_input(&ic);
-    }else{
-        LOGW("avformat_open_input %s failed:",av_err2str(re));
+        return env->NewStringUTF(hello.c_str());
     }
-    return env->NewStringUTF(hello.c_str());
+
 }
 
 extern "C"

@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.testffmpeg.databinding.ActivityMainBinding
+import kotlinx.coroutines.delay
 import java.util.Objects
 
 class MainActivity : AppCompatActivity() {
@@ -34,7 +35,7 @@ class MainActivity : AppCompatActivity() {
         // Example of a call to a native method
         binding.sampleText.text = stringFromJNI()
 
-        open("/sdcard/1.mp4",this)
+//        open("/sdcard/1.mp4",this)
     }
 
     /**
