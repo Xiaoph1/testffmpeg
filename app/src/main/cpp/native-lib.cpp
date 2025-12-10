@@ -42,7 +42,7 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     //然后获取信息
     LOGW("duration = %lld, nb_streams = %d",ic->duration,ic->nb_streams);
 
-    //遍历获取音视频流信息
+    //方法一：遍历获取音视频流信息
     int fps=0,videoStream=0,audioStream=0;
     for (int i = 0; i < ic->nb_streams; i++) {
         AVStream *as = ic->streams[i];
@@ -66,7 +66,9 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
         }
 
     }
-
+    //方法二：av_find_best_stream找到索引
+    audioStream = av_find_best_stream(ic,AVMEDIA_TYPE_AUDIO,-1,-1,NULL,0);
+    LOGW("av_find_best_stream:%d",audioStream);
 
 
     avformat_close_input(&ic);
