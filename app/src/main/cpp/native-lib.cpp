@@ -132,11 +132,32 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     SwsContext *vctx = NULL;
     int outWidth = 1280;
     int outHeight = 720;
+    char*rgb = new char[1920*1080*4];
+    char *pcm = new char[48000*4*2];
 
     //time
     long long start = GetNowMs();
     int frame_count = 0;
-    char*rgb = new char[1920*1080*4];
+
+    //音频重采样
+    SwrContext *actx = swr_alloc();
+    actx = swr_alloc_set_opts(actx,
+                              av_get_default_channel_layout(2),
+                              AV_SAMPLE_FMT_S16,
+                              ac->sample_rate,
+                              av_get_default_channel_layout(ac->channels),
+                              ac->sample_fmt,
+                              ac->sample_rate,
+                              0,0);
+    re = swr_init(actx);
+    if (re != 0){
+        LOGW("swr_init failed");
+    }else{
+        LOGW("swr_init success");
+    }
+
+
+
     for (;;) {
         //计算三秒内视频解码多少帧/秒
         if (GetNowMs() -start >= 3000){
@@ -200,6 +221,19 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
                     LOGW("sws_scale = %d",h);
                 }
             }
+            //音频帧
+            else{
+                uint8_t *out[2] = {0};
+                out[0] = (uint8_t*)pcm;
+                //音频重采样
+                int len = swr_convert(actx,out,
+                                      frame->nb_samples,
+                                      (const uint8_t**)frame->data,
+                                      frame->nb_samples);
+                LOGW("swr_convert = %d",len);
+
+
+            }
 
 
             LOGW("avcodec_receive_frame success,%lld",frame->pts);
@@ -207,11 +241,10 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
 
     }
 
-    delete[](rgb);
+    delete[] rgb;
+    delete[] pcm;
     avformat_close_input(&ic);
     return env->NewStringUTF(hello.c_str());
-
-
 }
 
 extern "C"
