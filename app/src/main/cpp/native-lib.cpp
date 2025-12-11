@@ -5,6 +5,8 @@
 extern "C"{
 #include <libavcodec/avcodec.h>
 #include <libavformat//avformat.h>
+#include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 }
 #include<iostream>
 using namespace std;
@@ -126,9 +128,15 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     AVPacket *pkt = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
 
+    //初始化像素格式转换上下文
+    SwsContext *vctx = NULL;
+    int outWidth = 1280;
+    int outHeight = 720;
+
     //time
     long long start = GetNowMs();
     int frame_count = 0;
+    char*rgb = new char[1920*1080*4];
     for (;;) {
         //计算三秒内视频解码多少帧/秒
         if (GetNowMs() -start >= 3000){
@@ -171,13 +179,35 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
             //视频帧++
             if (cc == vc){
                 frame_count++;
+                vctx = sws_getCachedContext(vctx,
+                                            frame->width,
+                                            frame->height,
+                                            (AVPixelFormat)frame->format,
+                                            outWidth,
+                                            outHeight,
+                                            AV_PIX_FMT_RGBA,
+                                            SWS_FAST_BILINEAR,
+                                            0,0,0);
+                if (!vctx){
+                    LOGW("sws_getCachedContext failed");
+                }else{
+                    uint8_t *data[AV_NUM_DATA_POINTERS] = {0};
+                    data[0] =(uint8_t *)rgb;
+                    int lines[AV_NUM_DATA_POINTERS] = {0};
+                    lines[0] = outWidth * 4;
+                    int h = sws_scale(vctx,frame->data,frame->linesize,0,frame->height,
+                                      data,lines);
+                    LOGW("sws_scale = %d",h);
+                }
             }
+
+
             LOGW("avcodec_receive_frame success,%lld",frame->pts);
         }
 
     }
 
-
+    delete[](rgb);
     avformat_close_input(&ic);
     return env->NewStringUTF(hello.c_str());
 
