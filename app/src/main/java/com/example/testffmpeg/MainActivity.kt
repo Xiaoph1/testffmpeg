@@ -3,11 +3,15 @@ package com.example.testffmpeg
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -38,6 +42,8 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        //隐藏导航栏
+        hideSystemUIAndsupportActionBar()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -64,6 +70,32 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
                 1001
             )
+        }
+    }
+
+    private fun hideSystemUIAndsupportActionBar(){
+        supportActionBar?.hide()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+ (API 30+) - 使用新API
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let { controller ->
+                // 隐藏状态栏和导航栏
+                controller.hide(WindowInsets.Type.systemBars())
+                // 设置手势行为：滑动边缘临时显示
+                controller.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            // Android 10及以下 - 使用旧API
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    )
         }
     }
 
