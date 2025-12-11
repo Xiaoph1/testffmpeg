@@ -25,6 +25,8 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     av_register_all();
     //初始化网络
     avformat_network_init();
+    //初始化解码器
+    avcodec_register_all();
     //打开文件
     AVFormatContext *ic = NULL;
     char path[] = "/sdcard/1.mp4";
@@ -69,6 +71,49 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     //方法二：av_find_best_stream找到索引
     audioStream = av_find_best_stream(ic,AVMEDIA_TYPE_AUDIO,-1,-1,NULL,0);
     LOGW("av_find_best_stream:%d",audioStream);
+
+    //打开视频解码器
+    //软解码器
+    AVCodec *codec = avcodec_find_decoder(ic->streams[videoStream]->codecpar->codec_id);
+    //硬解码
+//    codec = avcodec_find_decoder_by_name("h264_mediacodec");
+    if (!codec){
+        LOGW("avcodec_find failed");
+        return env->NewStringUTF(hello.c_str());
+    }
+    //解码器初始化
+    AVCodecContext *vc = avcodec_alloc_context3(codec);
+    avcodec_parameters_to_context(vc,ic->streams[videoStream]->codecpar);
+    vc->thread_count = 1;
+    //打开解码器
+    re = avcodec_open2(vc,0,0);
+    if (re != 0){
+        LOGW("avcodec_open2 video failed");
+        return env->NewStringUTF(hello.c_str());
+    }
+    LOGW("avcodec_open2 video success");
+
+    //打开音频解码器
+    //软解码器
+    AVCodec *acodec = avcodec_find_decoder(ic->streams[audioStream]->codecpar->codec_id);
+    //硬解码
+//    acodec = avcodec_find_decoder_by_name("h264_mediacodec");
+    if (!acodec){
+        LOGW("avcodec_find audio failed");
+        return env->NewStringUTF(hello.c_str());
+    }
+    //解码器初始化
+    AVCodecContext *ac = avcodec_alloc_context3(acodec);
+    avcodec_parameters_to_context(ac,ic->streams[audioStream]->codecpar);
+    ac->thread_count = 1;
+    //打开解码器
+    re = avcodec_open2(ac,0,0);
+    if (re != 0){
+        LOGW("avcodec_open2 audio failed");
+        return env->NewStringUTF(hello.c_str());
+    }
+    LOGW("avcodec_open2 audio success");
+
 
     //读取帧数据
     AVPacket *pkt = av_packet_alloc();
