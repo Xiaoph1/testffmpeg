@@ -117,18 +117,43 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
 
     //读取帧数据
     AVPacket *pkt = av_packet_alloc();
+    AVFrame *frame = av_frame_alloc();
     for (;;) {
         int re = av_read_frame(ic,pkt);
         if (re != 0){
             LOGW("av_read_frame to the end");
             int pos = 10 * r2d(ic->streams[videoStream]->time_base);
             av_seek_frame(ic,videoStream,pos,AVSEEK_FLAG_BACKWARD|AVSEEK_FLAG_FRAME);
+            pkt = nullptr;
         }
+
+        //音视频同步解码
+        AVCodecContext *cc = vc;
+        if (pkt->stream_index != videoStream){
+            cc = ac;
+        }
+
         LOGW("stream = %d size=%d pts=%lld flag=%d",
              pkt->stream_index,pkt->size,pkt->pts,pkt->flags);
-
+        //解码
+        //发送到线程中解码
+        re = avcodec_send_packet(cc,pkt);
         //释放空间
         av_packet_unref(pkt);
+
+        if (re != 0){
+            LOGW("avcodec_send_packet %d failed",pkt->stream_index);
+            continue;
+        }
+        for (;;) {
+            re = avcodec_receive_frame(cc,frame);
+            if (re != 0){
+//                LOGW("avcodec_receive_frame failed");
+                break;
+            }
+            LOGW("avcodec_receive_frame success,%lld",frame->pts);
+        }
+
     }
 
 
