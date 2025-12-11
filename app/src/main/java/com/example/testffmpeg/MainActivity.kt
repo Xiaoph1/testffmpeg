@@ -11,8 +11,12 @@ import android.view.SurfaceView
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.testffmpeg.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Objects
 
 class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
@@ -46,7 +50,7 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         requestPermissions()
 
         // Example of a call to a native method
-        binding.sampleText.text = stringFromJNI()
+//        binding.sampleText.text = stringFromJNI()
 
     }
 
@@ -66,7 +70,18 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
     override fun surfaceCreated(holder: SurfaceHolder) {
         // 启动视频播放（替换为你的视频路径）
         val videoPath = "/sdcard/1.mp4"
-        open(videoPath, holder.surface)
+//        open(videoPath, holder.surface)
+        lifecycleScope.launch {
+            try {
+                // 在 IO 线程执行阻塞操作
+                withContext(Dispatchers.IO) {
+                    open(videoPath, holder.surface)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                binding.sampleText.text = "播放失败: ${e.message}"
+            }
+        }
     }
 
 
