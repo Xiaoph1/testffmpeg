@@ -12,6 +12,13 @@ using namespace std;
 static double r2d(AVRational r){
     return r.num == 0 || r.den == 0?0:(double)r.num/(double)r.den;
 }
+long long GetNowMs(){
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    int sec = tv.tv_sec%360000;
+    long long t = sec*1000 + tv.tv_usec/1000;
+    return t;
+}
 
 extern "C" JNIEXPORT jstring
 JNICALL
@@ -84,7 +91,7 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     //解码器初始化
     AVCodecContext *vc = avcodec_alloc_context3(codec);
     avcodec_parameters_to_context(vc,ic->streams[videoStream]->codecpar);
-    vc->thread_count = 1;
+    vc->thread_count = 8;
     //打开解码器
     re = avcodec_open2(vc,0,0);
     if (re != 0){
@@ -118,13 +125,23 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     //读取帧数据
     AVPacket *pkt = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
+
+    //time
+    long long start = GetNowMs();
+    int frame_count = 0;
     for (;;) {
+        //计算三秒内视频解码多少帧/秒
+        if (GetNowMs() -start >= 3000){
+            LOGW("now decode fps is %d",frame_count/3);
+            start = GetNowMs();
+            frame_count = 0;
+        }
         int re = av_read_frame(ic,pkt);
         if (re != 0){
             LOGW("av_read_frame to the end");
             int pos = 10 * r2d(ic->streams[videoStream]->time_base);
             av_seek_frame(ic,videoStream,pos,AVSEEK_FLAG_BACKWARD|AVSEEK_FLAG_FRAME);
-            pkt = nullptr;
+//            pkt = nullptr;
         }
 
         //音视频同步解码
@@ -150,6 +167,10 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
             if (re != 0){
 //                LOGW("avcodec_receive_frame failed");
                 break;
+            }
+            //视频帧++
+            if (cc == vc){
+                frame_count++;
             }
             LOGW("avcodec_receive_frame success,%lld",frame->pts);
         }
