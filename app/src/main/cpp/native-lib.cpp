@@ -247,17 +247,10 @@ Java_com_example_testffmpeg_MainActivity_stringFromJNI(
     return env->NewStringUTF(hello.c_str());
 }
 
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_testffmpeg_MainActivity_open(JNIEnv *env, jobject thiz, jstring url,
-                                              jobject handle) {
-    const char *url_str = env->GetStringUTFChars(url, nullptr);
-    FILE *fp = fopen(url_str, "rb");
-    if (!fp){
-        LOGW("%s open failed!",url_str);
-    }else{
-        LOGW("%s open success!",url_str);
-        fclose(fp);
-    }
+                                                   jobject surface) {
 
 }
