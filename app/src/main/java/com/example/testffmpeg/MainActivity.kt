@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         requestPermissions()
 
         // Example of a call to a native method
-//        binding.sampleText.text = stringFromJNI()
+        binding.sampleText.text = stringFromJNI()
 
     }
 

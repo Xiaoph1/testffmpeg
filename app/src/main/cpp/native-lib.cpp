@@ -3,7 +3,10 @@
 #include<android/log.h>
 #include<android/native_window.h>
 #include<android/native_window_jni.h>
+#include <SLES/OpenSLES.h>
+#include <SLES/OpenSLES_Android.h>
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,"testff",__VA_ARGS__)
+#define LOGD(...) __android_log_print(ANDROID_LOG_ERROR,"test",##__VA_ARGS__);
 extern "C"{
 #include <libavcodec/avcodec.h>
 #include <libavformat//avformat.h>
@@ -23,14 +26,118 @@ long long GetNowMs(){
     long long t = sec*1000 + tv.tv_usec/1000;
     return t;
 }
+static SLObjectItf engineSL = NULL;
+SLEngineItf CreateSL() {
+    SLresult re;
+    SLEngineItf en;
+    re = slCreateEngine(&engineSL,0,0,0,0,0);
+    if (re != SL_RESULT_SUCCESS) return NULL;
+    re = (*engineSL)->Realize(engineSL,SL_BOOLEAN_FALSE);
+    if (re != SL_RESULT_SUCCESS) return NULL;
+    re = (*engineSL)->GetInterface(engineSL,SL_IID_ENGINE,&en);
+    if (re != SL_RESULT_SUCCESS) return NULL;
+    return en;
+}
+void PcmCall(SLAndroidSimpleBufferQueueItf bf,void *contex){
+    LOGD("pcm call");
+    static FILE  *fp = NULL;
+    static char *buf = NULL;
+    if (!buf){
+        buf = new char[1024*1024];
+    }
+    if (!fp){
+       fp = fopen("/sdcard/test.pcm","rb");
+    }
+    if (!fp) return;
+    //没到结尾
+    if (feof(fp) == 0){
+        int len = fread(buf,1,1024,fp);
+        if (len>0){
+            (*bf)->Enqueue(bf,buf,len);
+        }
+    }
 
+
+
+
+}
 extern "C" JNIEXPORT jstring
 JNICALL
 Java_com_example_testffmpeg_MainActivity_stringFromJNI(
         JNIEnv* env,
         jobject /* this */) {
     std::string hello = "Hello from C++";
-    hello += avcodec_configuration();
+
+    //1.创建引擎
+    SLEngineItf eng = CreateSL();
+    if (eng){
+        LOGD("CreateSL success");
+    }else{
+        LOGD("CreateSL failed");
+    }
+
+    //2.创建混音器
+    SLresult re;
+    SLObjectItf mix = NULL;
+    re = (*eng)->CreateOutputMix(eng,&mix,0,nullptr,nullptr);
+    if (re != SL_RESULT_SUCCESS) {
+        LOGD("CreateOutputMix failed");
+    }
+    re = (*mix)->Realize(mix,SL_BOOLEAN_FALSE);
+    if (re != SL_RESULT_SUCCESS) {
+        LOGD("Realize Mix failed");
+    }
+    SLDataLocator_OutputMix outmix = {SL_DATALOCATOR_OUTPUTMIX,mix};
+    SLDataSink audioSink = {&outmix,0};
+
+    //3.配置音频信息
+    SLDataLocator_AndroidSimpleBufferQueue que = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,10};
+    SLDataFormat_PCM pcm = {
+            SL_DATAFORMAT_PCM,
+            2,
+            SL_SAMPLINGRATE_44_1,
+            SL_PCMSAMPLEFORMAT_FIXED_16,
+            SL_PCMSAMPLEFORMAT_FIXED_16,
+            SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
+            SL_BYTEORDER_LITTLEENDIAN
+    };
+    SLDataSource ds = {&que,&pcm};
+
+    //4.创建播放器
+    SLObjectItf player = NULL;
+    SLPlayItf iplayer = NULL;
+    SLAndroidSimpleBufferQueueItf pcmQue = NULL;
+    const SLInterfaceID ids[] = {SL_IID_BUFFERQUEUE};
+    const SLboolean req[] = {SL_BOOLEAN_TRUE};
+
+    re = (*eng)->CreateAudioPlayer(eng,&player,&ds,&audioSink,sizeof (ids)/sizeof (SLInterfaceID),ids,req);
+    if (re != SL_RESULT_SUCCESS) {
+        LOGD("CreateAudioPlayer failed");
+    }else{
+        LOGD("CreateAudioPlayer success");
+    }
+    (*player)->Realize(player,SL_BOOLEAN_FALSE);
+    //获取player接口
+    re = (*player)->GetInterface(player,SL_IID_PLAY,&iplayer);
+    if (re != SL_RESULT_SUCCESS) {
+        LOGD("GetInterface SL_IID_PLAY failed");
+    }else{
+        LOGD("GetInterface SL_IID_PLAY success");
+    }
+    //获取队列接口
+    re = (*player)->GetInterface(player,SL_IID_BUFFERQUEUE,&pcmQue);
+    if (re != SL_RESULT_SUCCESS) {
+        LOGD("GetInterface SL_IID_BUFFERQUEUE failed");
+    }else{
+        LOGD("GetInterface SL_IID_BUFFERQUEUE success");
+    }
+    //设置回调函数，播放队列空调用
+    (*pcmQue)->RegisterCallback(pcmQue,PcmCall,0);
+    //设置播放状态
+    (*iplayer)->SetPlayState(iplayer,SL_PLAYSTATE_PLAYING);
+    //启动队列回调
+    (*pcmQue)->Enqueue(pcmQue,"",1);
+
     return env->NewStringUTF(hello.c_str());
 }
 
